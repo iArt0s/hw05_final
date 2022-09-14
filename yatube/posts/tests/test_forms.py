@@ -1,10 +1,11 @@
-import shutil, tempfile
+import shutil
+import tempfile
+
 from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
-
 from posts.forms import PostForm, CommentForm
 from posts.models import Group, Post, User, Comment
 

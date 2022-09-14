@@ -67,7 +67,9 @@ class StaticURLTests(TestCase):
 
     def test_unexisting_page(self):
         """Тест проверяет доступность несуществующей страницы."""
-        response = self.authorized_client.get(f'/profile/{self.user.username}/')
+        response = self.authorized_client.get(
+            f'/profile/{self.user.username}/'
+        )
         self.assertTrue(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_redirect_not_author_post(self):

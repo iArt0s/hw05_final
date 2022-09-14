@@ -389,4 +389,3 @@ class FollowingTests(TestCase):
 
         self.assertEqual(len(following_difference), 1)
         self.assertIn(self.users[1], following_difference)
-
