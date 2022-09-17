@@ -111,4 +111,3 @@ class StaticURLTests(TestCase):
                        kwargs={'post_id': self.post.id})
              )
         )
-

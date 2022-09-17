@@ -3,7 +3,6 @@ from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..forms import PostForm
 from ..models import Post, Group, User, Follow, Comment
 from ..constants import PAGINATOR_COUNT
 from .utils import compare_fields
