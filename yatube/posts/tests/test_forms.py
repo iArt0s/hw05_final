@@ -130,12 +130,6 @@ class CommentCreationTests(TestCase):
             description='Первая тестовая группа',
         )
 
-        cls.group_second = Group.objects.create(
-            title='Second group',
-            slug='Second',
-            description='Вторая тестовая группа',
-        )
-
         cls.author = User.objects.create_user(
             username='First_user'
         )
@@ -144,61 +138,6 @@ class CommentCreationTests(TestCase):
             group=cls.group,
             text="Тестовый пост",
             author=cls.author,
-        )
-        cls.post2 = Post.objects.create(
-            group=cls.group,
-            text="Тестовый пост2",
-            author=cls.author,
-        )
-        cls.test_comment = Comment.objects.create(
-            post=cls.post,
-            author=cls.author,
-            text='Blah blah blah',
-        )
-
-    def test_comment_is_on_correct_post_detail_page(self):
-        """Проверяет, что комментарий отображается на странице поста."""
-
-        response = self.client.get(reverse('posts:post_detail',
-                                           kwargs={'post_id': self.post.id}))
-        context_comments = response.context.get('post').comments.all()
-        self.assertIn(
-            self.test_comment,
-            context_comments,
-            msg='Новый коммент не отображается на странце поста.')
-
-    def test_comment_is_not_on_detail_page_of_other_post(self):
-        """
-        Проверяет, что комментарий не отображается на странице другого поста.
-        """
-
-        response = self.client.get(reverse('posts:post_detail',
-                                           kwargs={'post_id': self.post2.id}))
-
-        context_comments = response.context.get('post').comments.all()
-        self.assertEqual(
-            len(context_comments),
-            0,
-            msg='Новый коммент отображается на странце другого поста.')
-
-    def test_guest_user_cannot_add_comments(self):
-        """
-        Гость не может добавлять комментарии.
-        """
-        response = self.client.get(
-            reverse(
-                'posts:add_comment',
-                kwargs={'post_id': self.post.id}
-            )
-        )
-
-        self.assertRedirects(
-            response,
-            (reverse('login')
-             + '?next='
-             + reverse('posts:add_comment',
-                       kwargs={'post_id': self.post.id})
-             )
         )
 
 

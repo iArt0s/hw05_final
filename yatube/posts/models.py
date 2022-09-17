@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
-from .utils import MAX_CHAR_LENGTH
+from .constants import MAX_CHAR_LENGTH
 
 User = get_user_model()
 

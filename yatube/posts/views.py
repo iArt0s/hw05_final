@@ -5,21 +5,17 @@ from .forms import PostForm, CommentForm
 from .models import Group, Post, User, Follow
 from .utils import pagination
 
-POST_TITLE_LENGTH = 30
-
 
 def index(request):
     template = 'posts/index.html'
-    posts = Post.objects.order_by('-pub_date')
+    posts = Post.objects.select_related('group', 'author')
     context = pagination(posts, request)
     return render(request, template, context)
 
 
 def group_posts(request, slug):
     group = get_object_or_404(Group, slug=slug)
-    posts = Post.objects.filter(
-        group=group,
-    ).order_by('-pub_date')
+    posts = group.posts.all()
     context = {'group': group}
     context.update(pagination(posts, request))
 
@@ -104,30 +100,26 @@ def add_comment(request, post_id):
         comment.post = post
         comment.save()
         return redirect('posts:post_detail', post_id)
+
     return redirect('posts:post_detail', post_id)
 
 
 @login_required
 def follow_index(request):
     posts = Post.objects.filter(author__following__user=request.user)
-    context = {
-        'title': 'Избранные авторы',
-    }
-    context.update(pagination(posts, request))
 
-    return render(request, 'posts/follow.html', context)
+    return render(request, 'posts/follow.html', pagination(posts, request))
 
 
 @login_required
 def profile_follow(request, username):
     author = get_object_or_404(User, username=username)
-    follower = request.user
-    follower_list = Follow.objects.filter(author=author, user=follower)
-    if follower_list.exists() or follower == author:
+    follower_list = Follow.objects.filter(author=author, user=request.user)
+    if follower_list.exists() or request.user == author:
         return redirect('posts:index')
     Follow.objects.create(
         author=author,
-        user=follower
+        user=request.user
     )
     return redirect('posts:profile', username)
 
@@ -135,9 +127,6 @@ def profile_follow(request, username):
 @login_required
 def profile_unfollow(request, username):
     author = get_object_or_404(User, username=username)
-    follower = request.user
-    follower_list = Follow.objects.filter(author=author, user=follower)
-    if not follower_list.exists():
-        return redirect('posts:index')
-    follower_list.delete()
+    Follow.objects.filter(author=author, user=request.user).delete()
+
     return redirect('posts:profile', username)

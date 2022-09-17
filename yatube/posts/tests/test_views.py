@@ -3,16 +3,17 @@ from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from posts.forms import PostForm
-from posts.models import Post, Group, User, Follow
-from posts.utils import PAGINATOR_COUNT
+from ..forms import PostForm
+from ..models import Post, Group, User, Follow, Comment
+from ..constants import PAGINATOR_COUNT
+from .utils import compare_fields
 
 
 class TaskPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        user = User.objects.create_user(username='First_user')
+        cls.user = User.objects.create_user(username='First_user')
         small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
             b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -27,7 +28,7 @@ class TaskPagesTests(TestCase):
             content_type='image/gif'
         )
         cls.author_user = Client()
-        cls.author_user.force_login(user)
+        cls.author_user.force_login(cls.user)
         cls.group = Group.objects.create(
             title='First_group',
             slug='First',
@@ -35,13 +36,24 @@ class TaskPagesTests(TestCase):
         )
         cls.post = Post.objects.create(
             text='Тестовый текст',
-            author=user,
+            author=cls.user,
             group=cls.group,
             image=cls.uploaded,
         )
         cls.profile_user = reverse(
             'posts:profile',
             kwargs={'username': cls.post.author}
+        )
+        cls.test_comment = Comment.objects.create(
+            post=cls.post,
+            author=cls.user,
+            text='Blah blah blah',
+        )
+        cls.post2 = Post.objects.create(
+            group=cls.group,
+            text="Тестовый пост2",
+            author=cls.user,
+            image=cls.uploaded,
         )
 
         cls.templates_pages_names = {
@@ -79,7 +91,6 @@ class TaskPagesTests(TestCase):
         )
 
     def setUp(self):
-        self.user = User.objects.create_user(username='Sandoren')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
         cache.clear()
@@ -91,17 +102,30 @@ class TaskPagesTests(TestCase):
                 response = self.author_user.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
-    def test_author_in_profile(self):
+    def test_author_in_profile_correct_context(self):
         """проверка автора профиля"""
         response = self.author_user.get(
             TaskPagesTests.profile_user
         )
-        self.assertIn('author', response.context)
-        self.assertIsInstance(response.context['author'], User)
-        self.assertEquals(
-            response.context['author'].username,
-            TaskPagesTests.post.author.username
+        index_of_testing_post = 0
+
+        context_author = response.context.get('author')
+        context_post = response.context.get('page_obj')[index_of_testing_post]
+
+        self.assertEqual(
+            self.user,
+            context_author,
+            msg='В конексте вернулся некорректный автор.'
         )
+
+        self.assertIsInstance(response.context['author'], User)
+        fields_to_test = (
+            ('text', self.post2.text, 'Некорректный текст поста'),
+            ('group', self.post2.group, 'Некорректная группа поста'),
+            ('author', self.post2.author, 'Некорректный автор поста'),
+        )
+
+        compare_fields(self, fields_to_test, context_post)
 
     def test_groups_in_group_lists(self):
         """проверка корректности группы в group_lists"""
@@ -125,14 +149,14 @@ class TaskPagesTests(TestCase):
                 first_object = response.context['page_obj'][0]
                 self.assertEqual(
                     first_object.text,
-                    self.post.text
+                    self.post2.text
                 )
                 self.assertEqual(
                     first_object.group.id,
                     self.group.id
                 )
                 self.assertEqual(
-                    first_object.id, self.post.id
+                    first_object.id, self.post2.id
                 )
                 self.assertEqual(
                     first_object.author,
@@ -140,7 +164,7 @@ class TaskPagesTests(TestCase):
                 )
                 self.assertEqual(
                     first_object.image,
-                    self.post.image
+                    self.post2.image
                 )
 
     def test_post_detail_pages_show_correct_context(self):
@@ -151,6 +175,7 @@ class TaskPagesTests(TestCase):
         )
         response = self.authorized_client.get(url)
         context_post = response.context['post']
+        context_comments = response.context.get('post').comments.all()
         self.assertEqual(
             context_post.text,
             self.post.text
@@ -171,33 +196,37 @@ class TaskPagesTests(TestCase):
             context_post.image,
             self.post.image
         )
+        self.assertIn(
+            self.test_comment,
+            context_comments,
+            msg='Новый коммент не отображается на странце поста.')
 
-    def test_page_form_show_correct_context(self):
-        """проверка корректности контекста у формы"""
-        for address, args in self.response_list:
-            with self.subTest(address=address):
-                response = self.author_user.get(address)
-                form_fields = response.context['form']
-                self.assertIsInstance(form_fields, PostForm)
-                for variable, value in args.items():
-                    self.assertIn(
-                        variable,
-                        response.context
-                    )
-                    self.assertEquals(
-                        response.context[variable],
-                        value
-                    )
+    def test_comment_is_not_on_detail_page_of_other_post(self):
+        """
+        Проверяет, что комментарий не отображается на странице другого поста.
+        """
+
+        response = self.client.get(reverse('posts:post_detail',
+                                           kwargs={'post_id': self.post2.id}))
+
+        context_comments = response.context.get('post').comments.all()
+        self.assertEqual(
+            len(context_comments),
+            0,
+            msg='Новый коммент отображается на странце другого поста.')
 
     def test_cache(self):
+        """тест корректной работы кеша """
         old_response = self.author_user.get(
             reverse('posts:index')
         )
 
         new_post = Post.objects.create(
             author=self.user,
-            text='text',
+            text='post_text',
         )
+        response = self.authorized_client.get(reverse("posts:index"))
+        self.assertNotContains(response, new_post.text)
 
         old_post_lists = [i for i in old_response.context['page_obj']]
 
@@ -254,7 +283,6 @@ class PaginatorViewsTest(TestCase):
         }
 
     def setUp(self):
-        self.user = User.objects.create_user(username='Sandoren')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
@@ -331,7 +359,6 @@ class FollowingTests(TestCase):
         self.authorised_user.force_login(
             self.users[0])
         self.other_user = User.objects.create_user(username='other_user')
-        self.guest_client = Client()
         self.authorized_client_other = Client()
         self.authorized_client_other.force_login(self.other_user)
 
@@ -340,30 +367,20 @@ class FollowingTests(TestCase):
         Авторизованный пользователь может подписываться на других
         пользователей.
         """
-
-        response = self.authorised_user.get(
-            reverse('posts:follow_index')
+        Follow.objects.all().delete()
+        self.assertEqual(
+            Follow.objects.all().count(),
+            0,
         )
-
-        expected_posts = []
-        user_following = self.users[0].follower.all()
-        for following in user_following:
-            following_posts = [i for i in following.author.posts.all()]
-            expected_posts += following_posts
-
-        expected_posts.sort(key=lambda x: x.pub_date, reverse=True)
-        context_posts = list(response.context['page_obj'])
-
-        self.assertListEqual(
-            expected_posts,
-            context_posts,
-            msg='Ожидаемые посты не попали в подписки.'
+        self.authorised_user.get(
+            reverse('posts:profile_follow', kwargs={
+                'username': self.other_user.username
+            })
         )
         self.assertEqual(
-            len(expected_posts),
-            len(context_posts),
-            msg='Количество жжидаемые постов от подписок не соотвествует'
-                'полученным постам.'
+            Follow.objects.filter(user=self.users[0],
+                                  author=self.other_user).exists(),
+            True
         )
 
     def test_authorised_user_can_unfollow(self):
@@ -372,20 +389,19 @@ class FollowingTests(TestCase):
         пользователей.
         """
 
-        old_user_following = [i.author for i in self.users[0].follower.all()]
+        self.assertEqual(
+            True,
+            Follow.objects.filter(user=self.users[0],
+                                  author=self.users[1]).exists(),
+        )
 
         self.authorised_user.get(
-            reverse('posts:profile_unfollow',
-                    kwargs={
-                        'username': self.users[1].username
-                    }
-                    )
+            reverse('posts:profile_unfollow', kwargs={
+                'username': self.users[1].username
+            })
         )
-
-        new_user_following = [i.author for i in self.users[0].follower.all()]
-        following_difference = set(old_user_following).difference(
-            set(new_user_following)
+        self.assertEqual(
+            False,
+            Follow.objects.filter(user=self.users[0],
+                                  author=self.users[1]).exists(),
         )
-
-        self.assertEqual(len(following_difference), 1)
-        self.assertIn(self.users[1], following_difference)

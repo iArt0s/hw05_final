@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from ..models import Group, User, Post
-from ..utils import MAX_CHAR_LENGTH
+from ..constants import MAX_CHAR_LENGTH
 
 
 class PostModelTest(TestCase):

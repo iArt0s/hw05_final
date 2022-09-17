@@ -1,6 +1,7 @@
 from http import HTTPStatus
 
 from django.test import TestCase, Client
+from django.urls import reverse
 
 from ..models import Post, Group, User
 
@@ -90,3 +91,24 @@ class StaticURLTests(TestCase):
         пользователя со стр создания"""
         response = self.client.get('/create/')
         self.assertRedirects(response, '/auth/login/?next=/create/')
+
+    def test_guest_user_cannot_add_comments(self):
+        """
+        Гость не может добавлять комментарии.
+        """
+        response = self.client.get(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': self.post.id}
+            )
+        )
+
+        self.assertRedirects(
+            response,
+            (reverse('login')
+             + '?next='
+             + reverse('posts:add_comment',
+                       kwargs={'post_id': self.post.id})
+             )
+        )
+
