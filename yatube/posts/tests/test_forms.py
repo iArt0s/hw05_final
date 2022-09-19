@@ -177,7 +177,6 @@ class CommentFormTests(TestCase):
         new_comments = set(Comment.objects.all())
         comments_difference = new_comments.difference(old_comments)
         self.assertEqual(len(comments_difference), 1)
-        (new_comment,) = comments_difference
 
         self.assertRedirects(
             response,
