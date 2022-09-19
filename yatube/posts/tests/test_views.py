@@ -197,7 +197,6 @@ class TaskPagesTests(TestCase):
         context_comments = response.context['comments']
         self.post_check(context_post, self.post)
 
-
         self.assertIn(
             self.test_comment,
             context_comments,
@@ -416,8 +415,6 @@ class FollowingTests(TestCase):
                                   author=self.users[1]).exists(),
         )
 
-
-
     def test_new_post_shown_for_follower(self):
         """Новая запись пользователя появляется в ленте тех,
         кто на него подписан."""
@@ -427,8 +424,10 @@ class FollowingTests(TestCase):
         response = self.authorised_user.get(reverse('posts:follow_index'))
         first_post = response.context['page_obj'][0]
         self.assertEqual(first_post.text, self.users[1].posts.all()[0].text)
-        self.assertEqual(first_post.author, self.users[1].posts.all()[0].author)
-        self.assertEqual(first_post.group, self.users[1].posts.all()[0].group)
+        self.assertEqual(first_post.author,
+                         self.users[1].posts.all()[0].author)
+        self.assertEqual(first_post.group,
+                         self.users[1].posts.all()[0].group)
 
     def test_new_post_not_shown_for_follower(self):
         """Новая запись пользователя не появляется в ленте тех,
