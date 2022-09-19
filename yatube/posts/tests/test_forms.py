@@ -117,30 +117,6 @@ class PostCreateForm(TestCase):
         )
 
 
-class CommentCreationTests(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-        cls.authorized_client = Client()
-
-        cls.group = Group.objects.create(
-            title='First group',
-            slug='First',
-            description='Первая тестовая группа',
-        )
-
-        cls.author = User.objects.create_user(
-            username='First_user'
-        )
-
-        cls.post = Post.objects.create(
-            group=cls.group,
-            text="Тестовый пост",
-            author=cls.author,
-        )
-
-
 class CommentFormTests(TestCase):
 
     @classmethod
@@ -181,11 +157,10 @@ class CommentFormTests(TestCase):
             self.author)
 
     def test_new_comment_is_created_in_db(self):
-        """Комментарий создается после отпровки формы."""
+        """Комментарий создается после отправки формы."""
 
         new_comment_text = 'Blah blah blah'
-        new_comment_quantity = 1
-        comment_count = Comment.objects.count()
+        old_comments = set(Comment.objects.all())
 
         form_data = {
             'text': new_comment_text,
@@ -199,6 +174,11 @@ class CommentFormTests(TestCase):
             follow=True
         )
 
+        new_comments = set(Comment.objects.all())
+        comments_difference = new_comments.difference(old_comments)
+        self.assertEqual(len(comments_difference), 1)
+        (new_comment,) = comments_difference
+
         self.assertRedirects(
             response,
             reverse(
@@ -206,12 +186,6 @@ class CommentFormTests(TestCase):
                     'post_id': self.post.id
                 }
             )
-        )
-
-        self.assertEqual(
-            Comment.objects.all().count(),
-            comment_count + new_comment_quantity,
-            msg='Количество комментариев не увеличилось в базе данных.'
         )
 
         new_comment = Comment.objects.all().first()

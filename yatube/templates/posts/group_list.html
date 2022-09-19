@@ -9,19 +9,8 @@
             {{ group.description }}
         </p>
         {% for post in page_obj %}
-            <article>
-                <ul>
-                    <li>
-                        Автор: {{ post.author.get_full_name }}
-                    </li>
-                    <li>
-                        Дата публикации: {{ post.pub_date|date:"d E Y" }}
-                    </li>
-                </ul>
-                <p>{{ post.text|linebreaks }}</p>
-                <a href="{% url 'posts:post_detail' post.id %}">подробная
-                    информация</a>
-            </article>
+                        {% include 'posts/includes/post.html' with hide_group=True %}
+
             {% if not forloop.last %}
                 <hr>
             {% endif %}

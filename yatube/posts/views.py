@@ -10,6 +10,7 @@ def index(request):
     template = 'posts/index.html'
     posts = Post.objects.select_related('group', 'author')
     context = pagination(posts, request)
+
     return render(request, template, context)
 
 
@@ -28,7 +29,7 @@ def profile(request, username):
         user=request.user,
         author=author
     ).exists())
-    posts = author.posts.all().order_by('-pub_date')
+    posts = author.posts.all()
     context = {'author': author, 'following': following}
     context.update(pagination(posts, request))
 
@@ -99,7 +100,6 @@ def add_comment(request, post_id):
         comment.author = request.user
         comment.post = post
         comment.save()
-        return redirect('posts:post_detail', post_id)
 
     return redirect('posts:post_detail', post_id)
 

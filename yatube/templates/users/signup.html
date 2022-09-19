@@ -7,7 +7,7 @@
         <div class="card-header">Зарегистрироваться</div>
           <div class="card-body">
           {% load user_filters %}
-        {% include 'includes/formError.html' %}
+        {% include 'includes/form_error.html' %}
 
 
               <form method="post" action="{% url 'users:signup' %}">
