@@ -187,7 +187,7 @@ class CommentFormTests(TestCase):
             )
         )
 
-        new_comment = Comment.objects.all().first()
+        (new_comment,) = new_comments
         self.assertEqual(
             new_comment.text,
             form_data['text']
