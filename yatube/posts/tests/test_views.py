@@ -6,7 +6,6 @@ from django.urls import reverse
 from ..models import Post, Group, User, Follow, Comment
 from ..forms import CommentForm
 from ..constants import PAGINATOR_COUNT
-from .utils import compare_fields
 
 
 class TaskPagesTests(TestCase):
