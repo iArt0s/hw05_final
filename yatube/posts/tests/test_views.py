@@ -4,6 +4,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from ..models import Post, Group, User, Follow, Comment
+from ..forms import CommentForm
 from ..constants import PAGINATOR_COUNT
 from .utils import compare_fields
 
@@ -36,21 +37,6 @@ class TaskPagesTests(TestCase):
             slug='First',
             description='Описание'
         )
-        cls.post = Post.objects.create(
-            text='Тестовый текст',
-            author=cls.user,
-            group=cls.group,
-            image=cls.uploaded,
-        )
-        cls.profile_user = reverse(
-            'posts:profile',
-            kwargs={'username': cls.post.author}
-        )
-        cls.test_comment = Comment.objects.create(
-            post=cls.post,
-            author=cls.user,
-            text='Blah blah blah',
-        )
         cls.post2 = Post.objects.create(
             group=cls.group,
             text="Тестовый пост2",
@@ -63,6 +49,22 @@ class TaskPagesTests(TestCase):
             author=cls.user2,
             image=cls.uploaded,
         )
+        cls.post = Post.objects.create(
+            text='Тестовый текст',
+            author=cls.user,
+            group=cls.group,
+            image=cls.uploaded,
+        )
+        cls.test_comment = Comment.objects.create(
+            post=cls.post,
+            author=cls.user,
+            text='Blah blah blah',
+        )
+        cls.profile_user = reverse(
+            'posts:profile',
+            kwargs={'username': cls.post.author}
+        )
+
         cls.profile_user2 = reverse(
             'posts:profile',
             kwargs={'username': cls.post3.author}
@@ -121,7 +123,7 @@ class TaskPagesTests(TestCase):
     def test_author_in_profile_correct_context(self):
         """проверка контекста профиля """
         response = self.author_user.get(
-            TaskPagesTests.profile_user2
+            TaskPagesTests.profile_user
         )
         index_of_testing_post = 0
 
@@ -130,27 +132,23 @@ class TaskPagesTests(TestCase):
         context_post = response.context.get('page_obj')[index_of_testing_post]
 
         self.assertEqual(
-            self.user2,
+            self.user,
             context_author,
             msg='В конексте вернулся некорректный автор.'
         )
         self.assertEqual(
             context_follow,
-            True,
+            False,
         )
 
         self.assertIsInstance(response.context['author'], User)
-        fields_to_test = (
-            ('text', self.post3.text, 'Некорректный текст поста'),
-            ('group', self.post3.group, 'Некорректная группа поста'),
-            ('author', self.post3.author, 'Некорректный автор поста'),
-        )
-
-        compare_fields(self, fields_to_test, context_post)
+        self.post_check(context_post)
 
     def test_groups_in_group_lists(self):
         """проверка корректности группы в group_lists"""
         response = self.client.get(f'/group/{self.group.slug}/')
+        first_object = response.context['page_obj'][0]
+        self.post_check(first_object)
         self.assertIn('group', response.context)
         self.assertIsInstance(response.context['group'], Group)
         self.assertEquals(
@@ -166,25 +164,7 @@ class TaskPagesTests(TestCase):
         """проверка контекста на главной стр."""
         response = self.authorized_client.get(reverse('posts:index'))
         first_object = response.context['page_obj'][0]
-        self.assertEqual(
-            first_object.text,
-            self.post3.text
-        )
-        self.assertEqual(
-            first_object.group.id,
-            self.group.id
-        )
-        self.assertEqual(
-            first_object.id, self.post3.id
-        )
-        self.assertEqual(
-            first_object.author,
-            self.post3.author
-        )
-        self.assertEqual(
-            first_object.image,
-            self.post3.image
-        )
+        self.post_check(first_object)
 
     def test_post_detail_pages_show_correct_context(self):
         """проверка корректности контекста у post_detail"""
@@ -195,12 +175,15 @@ class TaskPagesTests(TestCase):
         response = self.authorized_client.get(url)
         context_post = response.context['post']
         context_comments = response.context['comments']
-        self.post_check(context_post, self.post)
+        context_form = response.context['form']
+        self.post_check(context_post)
 
         self.assertIn(
             self.test_comment,
             context_comments,
             msg='Новый коммент не отображается на странце поста.')
+
+        self.assertIsInstance(context_form, CommentForm)
 
     def test_comment_is_not_on_detail_page_of_other_post(self):
         """
@@ -242,26 +225,27 @@ class TaskPagesTests(TestCase):
         self.assertEqual(len(post_difference), 1)
         self.assertIn(new_post, post_difference)
 
-    def post_check(self, context_post, post_to_check):
+    def post_check(self, context_post):
+        """фунция проверки полей поста"""
         self.assertEqual(
             context_post.text,
-            post_to_check.text
+            self.post.text
         )
         self.assertEqual(
             context_post.group.id,
-            post_to_check.group.id
+            self.post.group.id
         )
         self.assertEqual(
             context_post.id,
-            post_to_check.id
+            self.post.id
         )
         self.assertEqual(
             context_post.author,
-            post_to_check.author
+            self.post.author
         )
         self.assertEqual(
             context_post.image,
-            post_to_check.image
+            self.post.image
         )
 
 
